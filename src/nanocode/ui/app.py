@@ -28,7 +28,7 @@ PRESET_MODELS: dict[str, list[str]] = {
         "gpt-4o",
         "gpt-4o-mini",
         "gpt-4.5-preview",
-        "Minimax/MiniMax-M2.5",
+        "MiniMax/MiniMax-M2.5",
         "qwen3.5-plus",
     ],
     "anthropic": [
@@ -279,11 +279,15 @@ A micro coding agent that auto-routes between **Claude Code**, **Codex**, and **
                         chat.stop_loading()
 
                 elif isinstance(event, TextEvent):
-                    if current_msg is None:
-                        chat.stop_loading()
-                        current_msg = chat.add_message("assistant", "")
+                    if not event.text:  # skip empty chunks (thinking tokens, etc.)
+                        continue
                     assistant_text += event.text
-                    current_msg.update_content(assistant_text)
+                    if current_msg is None:
+                        # Lazy creation — only mount bubble when we have real content
+                        chat.stop_loading()
+                        current_msg = chat.add_message("assistant", assistant_text)
+                    else:
+                        current_msg.update_content(assistant_text)
 
                 elif isinstance(event, ToolCallEvent):
                     chat.start_loading("tool")

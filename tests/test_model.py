@@ -15,7 +15,7 @@ class TestPresetModels:
 
         models = PRESET_MODELS["openai"]
         assert any("gpt" in m.lower() for m in models)
-        assert any("minimax" in m.lower() or "Minimax" in m for m in models)
+        assert any("minimax" in m.lower() or "MiniMax" in m for m in models)
         assert any("qwen" in m.lower() for m in models)
 
     def test_anthropic_presets_exist(self):
@@ -70,7 +70,7 @@ class TestFormatModelList:
     def test_format_model_list_shows_all(self):
         from nanocode.ui.app import format_model_list
 
-        models = ["gpt-4o", "gpt-4o-mini", "Minimax/MiniMax-M2.5", "qwen3.5-plus"]
+        models = ["gpt-4o", "gpt-4o-mini", "MiniMax/MiniMax-M2.5", "qwen3.5-plus"]
         result = format_model_list(models, current="gpt-4o")
         for m in models:
             assert m in result
