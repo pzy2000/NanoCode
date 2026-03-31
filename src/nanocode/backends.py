@@ -22,7 +22,7 @@ class OpenAIBackend:
     async def stream(
         self, system: str, messages: list, tools: list[Tool]
     ) -> AsyncIterator[Event]:
-        api_messages = [{"role": "system", "content": system}] + messages
+        api_messages = [{"role": "system", "content": system}] + self._convert(messages)
         tool_defs = [t.to_openai_schema() for t in tools] or None
         response = await self.client.chat.completions.create(
             model=self.model,
@@ -52,6 +52,34 @@ class OpenAIBackend:
             tc = tc_buf[idx]
             args = json.loads(tc["arguments"]) if tc["arguments"] else {}
             yield ToolCallEvent(name=tc["name"], args=args, call_id=tc["id"])
+
+    @staticmethod
+    def _convert(messages: list[dict]) -> list[dict]:
+        """Convert internal message format to OpenAI API format."""
+        result = []
+        for m in messages:
+            if m["role"] == "assistant" and "tool_calls" in m:
+                # Convert internal tool_calls to OpenAI format
+                result.append(
+                    {
+                        "role": "assistant",
+                        "content": m.get("content") or None,
+                        "tool_calls": [
+                            {
+                                "id": tc["id"],
+                                "type": "function",
+                                "function": {
+                                    "name": tc["name"],
+                                    "arguments": json.dumps(tc["args"]),
+                                },
+                            }
+                            for tc in m["tool_calls"]
+                        ],
+                    }
+                )
+            else:
+                result.append(m)
+        return result
 
 
 class AnthropicBackend:
