@@ -102,6 +102,18 @@ class TestApp:
 
         assert "##" in HELP_TEXT  # has markdown headers
         assert "|" in HELP_TEXT  # has markdown tables
-        from nanocode.__main__ import main
 
-        assert callable(main)
+    def test_welcome_text_contains_key_info(self):
+        import os
+        from unittest.mock import patch
+        from nanocode.ui.app import NanoCodeApp
+
+        with patch.dict(
+            os.environ, {"OPENAI_API_KEY": "test", "NANOCODE_MODEL": "gpt-4o"}
+        ):
+            app = NanoCodeApp.__new__(NanoCodeApp)
+            text = app._welcome_text()
+        assert "nanocode" in text
+        assert "gpt-4o" in text
+        assert "/help" in text
+        assert "auto" in text

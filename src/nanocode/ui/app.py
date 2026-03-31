@@ -113,7 +113,35 @@ class NanoCodeApp(App):
     def on_mount(self) -> None:
         status = self.query_one("#status-bar", StatusBar)
         status.set_agent("none", "#888888", "auto")
+        # Show welcome message
+        chat = self.query_one("#chat-view", ChatView)
+        chat.add_message("system", self._welcome_text())
         self.query_one("#chat-input", Input).focus()
+
+    def _welcome_text(self) -> str:
+        model = os.environ.get("NANOCODE_MODEL", "gpt-4o")
+        cwd = os.getcwd()
+        provider = "anthropic" if os.environ.get("ANTHROPIC_API_KEY") else "openai"
+        return f"""## ⚡ Welcome to nanocode
+
+A micro coding agent that auto-routes between **Claude Code**, **Codex**, and **OpenCode** styles.
+
+| | |
+|---|---|
+| **Model** | `{model}` |
+| **Provider** | `{provider}` |
+| **Working directory** | `{cwd}` |
+| **Routing mode** | `auto` |
+
+### Quick Start
+- Just type your coding request — nanocode will pick the right agent automatically
+- `/agent claude` · `/agent codex` · `/agent opencode` to lock a specific style
+- `/agent auto` to re-enable auto-routing
+- `/help` for the full command reference
+- `Ctrl+C` to exit
+
+*Consulting the Oracle at Delphi...* 🏛️
+"""
 
     @on(Input.Submitted, "#chat-input")
     def on_chat_submit(self, event: Input.Submitted) -> None:
