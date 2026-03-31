@@ -22,6 +22,43 @@ from nanocode.ui.chat_view import ChatView
 from nanocode.ui.status_bar import StatusBar
 from nanocode.ui.terminal_view import TerminalView
 
+HELP_TEXT = """## nanocode — Available Commands
+
+### Agent Control
+| Command | Description |
+|---------|-------------|
+| `/agent auto` | Enable auto-routing — LLM picks the best agent per request |
+| `/agent claude` | Lock to **Claude Code** — careful reasoning, reads before editing, asks before writing |
+| `/agent codex` | Lock to **Codex** — direct code generation, shell-only, auto-approves all tools |
+| `/agent opencode` | Lock to **OpenCode** — complex refactoring, full tool access, fully autonomous |
+| `/agent` | Show current mode and active agent |
+
+### Session
+| Command | Description |
+|---------|-------------|
+| `/clear` | Clear conversation history and reset message context |
+| `/help` or `/?` | Show this help message |
+| `/exit` or `/quit` | Exit nanocode |
+| `Ctrl+C` | Exit nanocode |
+
+### Agent Styles at a Glance
+```
+claude    — tools: all 6  | approval: prompt | best for: review, debug, explain
+codex     — tools: shell  | approval: auto   | best for: generate, build, deploy
+opencode  — tools: all 6  | approval: none   | best for: refactor, scaffold
+```
+
+### Auto-Routing
+When in `auto` mode, nanocode sends a lightweight classification call to the LLM
+before each request to pick the most suitable agent. The status bar shows which
+agent was selected and whether routing is automatic (⚡auto) or pinned (📌).
+
+### Tips
+- Type any message to start coding — no command needed
+- Switch agents mid-conversation without losing history
+- The terminal panel (right) shows all tool calls and their output
+"""
+
 
 class NanoCodeApp(App):
     TITLE = "nanocode"
@@ -94,12 +131,20 @@ class NanoCodeApp(App):
                 self.query_one("#chat-view", ChatView).clear_messages()
                 self.engine.messages.clear()
                 return
+            if text in ("/help", "/?"):
+                self.query_one("#chat-view", ChatView).add_message("system", HELP_TEXT)
+                return
             agent_result = self.router.handle_command(text)
             if agent_result is not None:
                 chat = self.query_one("#chat-view", ChatView)
                 chat.add_message("system", agent_result)
                 self._update_status_bar()
                 return
+            # Unknown command
+            self.query_one("#chat-view", ChatView).add_message(
+                "system",
+                f"Unknown command: `{text}`\nType `/help` to see all available commands.",
+            )
 
         # Normal message
         chat = self.query_one("#chat-view", ChatView)

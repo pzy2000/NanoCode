@@ -80,3 +80,28 @@ class TestApp:
         from nanocode.__main__ import main
 
         assert callable(main)
+
+    def test_help_text_exists(self):
+        from nanocode.ui.app import HELP_TEXT
+
+        assert "/agent" in HELP_TEXT
+        assert "/clear" in HELP_TEXT
+        assert "/exit" in HELP_TEXT
+        assert "/help" in HELP_TEXT
+        assert "auto" in HELP_TEXT
+
+    def test_help_text_covers_all_agents(self):
+        from nanocode.ui.app import HELP_TEXT
+
+        assert "claude" in HELP_TEXT.lower()
+        assert "codex" in HELP_TEXT.lower()
+        assert "opencode" in HELP_TEXT.lower()
+
+    def test_help_text_is_markdown(self):
+        from nanocode.ui.app import HELP_TEXT
+
+        assert "##" in HELP_TEXT  # has markdown headers
+        assert "|" in HELP_TEXT  # has markdown tables
+        from nanocode.__main__ import main
+
+        assert callable(main)
