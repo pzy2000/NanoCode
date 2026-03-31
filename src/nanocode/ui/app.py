@@ -23,6 +23,61 @@ from nanocode.ui.chat_view import ChatView
 from nanocode.ui.status_bar import StatusBar
 from nanocode.ui.terminal_view import TerminalView
 
+PRESET_MODELS: dict[str, list[str]] = {
+    "openai": [
+        "gpt-4o",
+        "gpt-4o-mini",
+        "gpt-4.5-preview",
+        "Minimax/MiniMax-M2.5",
+        "qwen3.5-plus",
+    ],
+    "anthropic": [
+        "claude-opus-4-5",
+        "claude-sonnet-4-5",
+        "claude-haiku-4-5",
+    ],
+}
+
+
+def format_model_list(models: list[str], current: str) -> str:
+    lines = ["**Available models** (current marked with ✓)\n"]
+    for i, m in enumerate(models, 1):
+        marker = " ✓" if m == current else ""
+        lines.append(f"`{i}.` `{m}`{marker}")
+    lines.append(f"\nUse `/model <n>` or `/model <name>` to switch.")
+    return "\n".join(lines)
+
+
+def handle_model_command(text: str, engine, provider: str) -> str | None:
+    """Handle /model command. Returns message or None if not a /model command."""
+    if not text.startswith("/model"):
+        return None
+
+    models = PRESET_MODELS.get(provider, PRESET_MODELS["openai"])
+    current = engine.get_model()
+    parts = text.split(maxsplit=1)
+
+    # /model with no arg — list models
+    if len(parts) == 1:
+        return format_model_list(models, current)
+
+    arg = parts[1].strip()
+
+    # /model <n> — switch by index
+    if arg.isdigit():
+        idx = int(arg) - 1
+        if idx < 0 or idx >= len(models):
+            return f"Invalid model number `{arg}`. Valid range: 1–{len(models)}."
+        model = models[idx]
+        engine.set_model(model)
+        return f"Switched to `{model}`"
+
+    # /model <name> — switch by name (preset or custom)
+    engine.set_model(arg)
+    marker = " (preset)" if arg in models else " (custom)"
+    return f"Switched to `{arg}`{marker}"
+
+
 HELP_TEXT = """## nanocode — Available Commands
 
 ### Agent Control
@@ -39,6 +94,9 @@ HELP_TEXT = """## nanocode — Available Commands
 |---------|-------------|
 | `/resume` | List saved sessions (newest first) |
 | `/resume <n>` | Restore session number `n` from the list |
+| `/model` | List available models |
+| `/model <n>` | Switch to preset model number `n` |
+| `/model <name>` | Switch to any model by name (custom models supported) |
 | `/clear` | Clear conversation history and reset message context |
 | `/help` or `/?` | Show this help message |
 | `/exit` or `/quit` | Exit nanocode |
@@ -107,6 +165,7 @@ class NanoCodeApp(App):
         )
         self.engine = Engine(backend)
         self.router = Router(self.engine, cwd=os.getcwd())
+        self._provider = provider
         self.history = HistoryManager()
         self.session_id = generate_session_id()
 
@@ -173,6 +232,11 @@ A micro coding agent that auto-routes between **Claude Code**, **Codex**, and **
                 return
             if text == "/resume" or text.startswith("/resume "):
                 self._handle_resume(text)
+                return
+            if text == "/model" or text.startswith("/model "):
+                result = handle_model_command(text, self.engine, self._provider)
+                self.query_one("#chat-view", ChatView).add_message("system", result)
+                self._update_status_bar()
                 return
             agent_result = self.router.handle_command(text)
             if agent_result is not None:
@@ -301,7 +365,8 @@ A micro coding agent that auto-routes between **Claude Code**, **Codex**, and **
     def _update_status_bar(self) -> None:
         status = self.query_one("#status-bar", StatusBar)
         agent = self.router.current_agent
+        model = self.engine.get_model()
         if agent:
-            status.set_agent(agent.display_name, agent.color, self.router.mode)
+            status.set_agent(agent.display_name, agent.color, self.router.mode, model)
         else:
-            status.set_agent("none", "#888888", self.router.mode)
+            status.set_agent("none", "#888888", self.router.mode, model)

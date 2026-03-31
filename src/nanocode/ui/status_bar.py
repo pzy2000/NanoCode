@@ -21,6 +21,7 @@ class StatusBar(Widget):
     agent_name: reactive[str] = reactive("none")
     agent_color: reactive[str] = reactive("#888888")
     route_mode: reactive[str] = reactive("auto")
+    model_name: reactive[str] = reactive("")
     loading_text: reactive[str] = reactive("")
 
     def render(self) -> Text:
@@ -33,14 +34,20 @@ class StatusBar(Widget):
         result.append(f" {self.agent_name} ", style=f"bold {self.agent_color}")
         result.append(f" {mode_icon}{self.route_mode} ", style="dim")
 
-        # Loading text (right-aligned via spaces)
+        # Model name
+        if self.model_name:
+            result.append(" │ ", style="dim")
+            result.append(self.model_name, style="dim")
+
+        # Loading text
         if self.loading_text:
             result.append(" │ ", style="dim")
             result.append(self.loading_text, style="dim italic")
 
         return result
 
-    def set_agent(self, name: str, color: str, mode: str) -> None:
+    def set_agent(self, name: str, color: str, mode: str, model: str = "") -> None:
         self.agent_name = name
         self.agent_color = color
         self.route_mode = mode
+        self.model_name = model

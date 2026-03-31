@@ -81,6 +81,12 @@ class Engine:
     def configure_tools(self, tools: dict[str, Tool]) -> None:
         self.tools = tools
 
+    def get_model(self) -> str:
+        return getattr(self.backend, "model", "")
+
+    def set_model(self, model: str) -> None:
+        self.backend.model = model
+
     async def submit(self, user_input: str) -> AsyncIterator[Event]:
         self.messages.append({"role": "user", "content": user_input})
         for _ in range(self.max_iterations):
