@@ -206,7 +206,9 @@ A micro coding agent that auto-routes between **Claude Code**, **Codex**, and **
                         chat.stop_loading()
                         current_msg = chat.add_message("assistant", "")
                     assistant_text += event.text
-                    chat.update_last_assistant(assistant_text)
+                    current_msg.update_content(
+                        assistant_text
+                    )  # direct ref, no DOM search
 
                 elif isinstance(event, ToolCallEvent):
                     chat.start_loading("tool")
