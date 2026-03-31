@@ -18,6 +18,7 @@ from nanocode.engine import (
     create_backend,
 )
 from nanocode.router import Router
+from nanocode.history import HistoryManager, generate_session_id, format_session_list
 from nanocode.ui.chat_view import ChatView
 from nanocode.ui.status_bar import StatusBar
 from nanocode.ui.terminal_view import TerminalView
@@ -36,6 +37,8 @@ HELP_TEXT = """## nanocode — Available Commands
 ### Session
 | Command | Description |
 |---------|-------------|
+| `/resume` | List saved sessions (newest first) |
+| `/resume <n>` | Restore session number `n` from the list |
 | `/clear` | Clear conversation history and reset message context |
 | `/help` or `/?` | Show this help message |
 | `/exit` or `/quit` | Exit nanocode |
@@ -52,6 +55,10 @@ opencode  — tools: all 6  | approval: none   | best for: refactor, scaffold
 When in `auto` mode, nanocode sends a lightweight classification call to the LLM
 before each request to pick the most suitable agent. The status bar shows which
 agent was selected and whether routing is automatic (⚡auto) or pinned (📌).
+
+### History
+Conversations are automatically saved to `~/.nanocode/history/` after each turn.
+Use `/resume` to list and restore previous sessions.
 
 ### Tips
 - Type any message to start coding — no command needed
@@ -100,6 +107,8 @@ class NanoCodeApp(App):
         )
         self.engine = Engine(backend)
         self.router = Router(self.engine, cwd=os.getcwd())
+        self.history = HistoryManager()
+        self.session_id = generate_session_id()
 
     def compose(self) -> ComposeResult:
         yield StatusBar(id="status-bar")
@@ -161,6 +170,9 @@ A micro coding agent that auto-routes between **Claude Code**, **Codex**, and **
                 return
             if text in ("/help", "/?"):
                 self.query_one("#chat-view", ChatView).add_message("system", HELP_TEXT)
+                return
+            if text == "/resume" or text.startswith("/resume "):
+                self._handle_resume(text)
                 return
             agent_result = self.router.handle_command(text)
             if agent_result is not None:
@@ -230,6 +242,56 @@ A micro coding agent that auto-routes between **Claude Code**, **Codex**, and **
         finally:
             chat.stop_loading()
             status.loading_text = ""
+            # Auto-save after every turn
+            if self.engine.messages:
+                self.history.save(
+                    self.session_id, self.engine.messages, cwd=os.getcwd()
+                )
+
+    def _handle_resume(self, text: str) -> None:
+        chat = self.query_one("#chat-view", ChatView)
+        sessions = self.history.list_sessions()
+        parts = text.split()
+
+        # /resume with no arg — list sessions
+        if len(parts) == 1:
+            chat.add_message("system", format_session_list(sessions))
+            return
+
+        # /resume <n> — restore by index
+        try:
+            idx = int(parts[1]) - 1
+            if idx < 0 or idx >= len(sessions):
+                chat.add_message(
+                    "system", f"Invalid session number. Use `/resume` to list sessions."
+                )
+                return
+        except ValueError:
+            chat.add_message(
+                "system", f"Usage: `/resume` to list, `/resume <n>` to restore."
+            )
+            return
+
+        session_id = sessions[idx]["session_id"]
+        data = self.history.load(session_id)
+        if not data:
+            chat.add_message("system", "Session not found or corrupted.")
+            return
+
+        # Restore state
+        self.engine.messages = data["messages"]
+        self.session_id = session_id
+        chat.clear_messages()
+        # Replay messages into chat view
+        for msg in data["messages"]:
+            role = msg.get("role", "user")
+            content = msg.get("content", "")
+            if role in ("user", "assistant") and content:
+                chat.add_message(role, content)
+        chat.add_message(
+            "system",
+            f"Session restored · {len(data['messages'])} messages · `{data.get('cwd', '')}`",
+        )
 
     def _update_status_bar(self) -> None:
         status = self.query_one("#status-bar", StatusBar)
