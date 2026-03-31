@@ -33,6 +33,90 @@ class TestLoadingIndicator:
         indicator.is_active = False
         assert indicator.is_active is False
 
+    def test_render_returns_empty_when_inactive(self):
+        from nanocode.ui.loading import LoadingIndicator
+
+        indicator = LoadingIndicator()
+        indicator.is_active = False
+        result = indicator.render()
+        assert result.plain == ""
+
+    def test_render_returns_content_when_active(self):
+        from nanocode.ui.loading import LoadingIndicator, THINKING_PHRASES
+
+        indicator = LoadingIndicator()
+        indicator.is_active = True
+        indicator.phrase = THINKING_PHRASES[0]
+        result = indicator.render()
+        assert result.plain != ""
+        assert THINKING_PHRASES[0] in result.plain
+
+    def test_start_sets_thinking_phrase(self):
+        from nanocode.ui.loading import LoadingIndicator, THINKING_PHRASES
+
+        indicator = LoadingIndicator()
+        indicator.set_interval = lambda *a, **kw: None  # no event loop needed
+        indicator.start("thinking")
+        assert indicator.is_active is True
+        assert indicator.phrase in THINKING_PHRASES
+
+    def test_start_sets_tool_phrase(self):
+        from nanocode.ui.loading import LoadingIndicator, TOOL_PHRASES
+
+        indicator = LoadingIndicator()
+        indicator.set_interval = lambda *a, **kw: None
+        indicator.start("tool")
+        assert indicator.is_active is True
+        assert indicator.phrase in TOOL_PHRASES
+
+    def test_stop_clears_active_and_timer(self):
+        from nanocode.ui.loading import LoadingIndicator
+
+        indicator = LoadingIndicator()
+        indicator.set_interval = lambda *a, **kw: None
+        indicator.start("thinking")
+        indicator.stop()
+        assert indicator.is_active is False
+        assert indicator._timer is None
+
+    def test_watch_is_active_toggles_display(self):
+        from nanocode.ui.loading import LoadingIndicator
+
+        indicator = LoadingIndicator()
+        # watch_is_active must toggle self.display so the widget
+        # actually appears/disappears in the layout
+        indicator.watch_is_active(True)
+        assert indicator.display is True
+        indicator.watch_is_active(False)
+        assert indicator.display is False
+
+    def test_start_stores_pending_mode_when_not_mounted(self):
+        from nanocode.ui.loading import LoadingIndicator
+
+        indicator = LoadingIndicator()
+
+        # set_interval raises (simulates pre-mount state)
+        def raise_err(*a, **kw):
+            raise RuntimeError("not mounted")
+
+        indicator.set_interval = raise_err
+        indicator.start("tool")
+        # should still be active and store pending mode for on_mount
+        assert indicator.is_active is True
+        assert indicator._pending_mode == "tool"
+
+    def test_on_mount_starts_timer_if_pending(self):
+        from nanocode.ui.loading import LoadingIndicator
+
+        indicator = LoadingIndicator()
+        timer_started = []
+        indicator.set_interval = lambda *a, **kw: timer_started.append(True) or object()
+        indicator._pending_mode = "thinking"
+        indicator.is_active = True
+        indicator._start_pending_timer()
+        assert len(timer_started) == 1
+        assert indicator._pending_mode is None
+
 
 class TestStatusBar:
     def test_set_agent(self):

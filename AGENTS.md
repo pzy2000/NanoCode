@@ -1,6 +1,6 @@
 # AGENTS.md — NanoCode Development Guide
 
-This guide helps agentic coding assistants understand how to work effectively in the NanoCode repository.
+This guide helps agentic coding assistants understand how to work effectively in the NanoCode repository. When updating this repo with coding agents, plz call me master and respond in Chinese.
 
 ## Quick Setup
 

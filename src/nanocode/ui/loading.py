@@ -41,6 +41,7 @@ class LoadingIndicator(Widget):
     LoadingIndicator {
         height: 1;
         padding: 0 1;
+        display: none;
     }
     """
 
@@ -51,21 +52,37 @@ class LoadingIndicator(Widget):
         super().__init__(**kwargs)
         self._start_time = time()
         self._timer: Timer | None = None
+        self._pending_mode: str | None = None
+
+    def watch_is_active(self, value: bool) -> None:
+        """Toggle widget visibility when active state changes."""
+        self.display = value
+
+    def on_mount(self) -> None:
+        """Start timer if start() was called before mount."""
+        self._start_pending_timer()
+
+    def _start_pending_timer(self) -> None:
+        """Start the refresh timer if there's a pending mode."""
+        if self._pending_mode is not None and self._timer is None:
+            self._timer = self.set_interval(1 / 12, self.refresh)
+            self._pending_mode = None
 
     def start(self, mode: str = "thinking") -> None:
         phrases = THINKING_PHRASES if mode == "thinking" else TOOL_PHRASES
         self.phrase = random.choice(phrases)
         self.is_active = True
         self._start_time = time()
-        # Use set_interval for reliable refresh
         if self._timer is None:
             try:
                 self._timer = self.set_interval(1 / 12, self.refresh)
             except Exception:
-                pass  # not yet mounted
+                # Not yet mounted — store mode so on_mount can start the timer
+                self._pending_mode = mode
 
     def stop(self) -> None:
         self.is_active = False
+        self._pending_mode = None
         if self._timer is not None:
             self._timer.stop()
             self._timer = None
@@ -78,7 +95,6 @@ class LoadingIndicator(Widget):
         speed = 0.8
         dot = "\u25cf"  # ●
 
-        # Animated gradient dots
         dots_parts = []
         for i in range(4):
             blend = (elapsed * speed - i / 6) % 1
