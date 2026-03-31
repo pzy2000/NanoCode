@@ -7,6 +7,10 @@ A micro coding agent that auto-routes between Claude Code, Codex, and OpenCode s
 ![Python](https://img.shields.io/badge/python-3.11%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
+## Terminal UI
+
+![NanoCode TUI in the terminal](nanocode.png)
+
 ## ✨ Features
 
 - **Auto-routing Agent**: LLM automatically selects the best agent (Claude/Codex/OpenCode) for your task

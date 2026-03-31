@@ -7,6 +7,10 @@
 ![Python](https://img.shields.io/badge/python-3.11%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
+## 终端界面
+
+![NanoCode 终端 TUI 示意](nanocode.png)
+
 ## ✨ 功能特性
 
 - **自动路由代理**：LLM 自动为你的任务选择最佳代理（Claude/Codex/OpenCode）
