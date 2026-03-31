@@ -185,6 +185,7 @@ A micro coding agent that auto-routes between **Claude Code**, **Codex**, and **
                 "system",
                 f"Unknown command: `{text}`\nType `/help` to see all available commands.",
             )
+            return
 
         # Normal message
         chat = self.query_one("#chat-view", ChatView)
@@ -197,15 +198,15 @@ A micro coding agent that auto-routes between **Claude Code**, **Codex**, and **
         terminal = self.query_one("#terminal-view", TerminalView)
         status = self.query_one("#status-bar", StatusBar)
 
-        # Route to agent
-        config = await self.router.resolve(user_input)
-        self._update_status_bar()
-
-        chat.start_loading("thinking")
-        assistant_text = ""
-        current_msg = None
-
         try:
+            # Route to agent
+            config = await self.router.resolve(user_input)
+            self._update_status_bar()
+
+            chat.start_loading("thinking")
+            assistant_text = ""
+            current_msg = None
+
             async for event in self.engine.submit(user_input):
                 if isinstance(event, StatusEvent):
                     if event.status == "thinking":
@@ -218,9 +219,7 @@ A micro coding agent that auto-routes between **Claude Code**, **Codex**, and **
                         chat.stop_loading()
                         current_msg = chat.add_message("assistant", "")
                     assistant_text += event.text
-                    current_msg.update_content(
-                        assistant_text
-                    )  # direct ref, no DOM search
+                    current_msg.update_content(assistant_text)
 
                 elif isinstance(event, ToolCallEvent):
                     chat.start_loading("tool")
@@ -237,8 +236,12 @@ A micro coding agent that auto-routes between **Claude Code**, **Codex**, and **
                     current_msg = None
 
         except Exception as e:
-            chat.stop_loading()
-            chat.add_message("system", f"Error: {e}")
+            import traceback
+
+            tb = traceback.format_exc()
+            chat.add_message(
+                "system", f"Error: `{type(e).__name__}: {e}`\n```\n{tb}\n```"
+            )
         finally:
             chat.stop_loading()
             status.loading_text = ""
@@ -263,12 +266,14 @@ A micro coding agent that auto-routes between **Claude Code**, **Codex**, and **
             idx = int(parts[1]) - 1
             if idx < 0 or idx >= len(sessions):
                 chat.add_message(
-                    "system", f"Invalid session number. Use `/resume` to list sessions."
+                    "system",
+                    "Invalid session number. Use `/resume` to list sessions.",
                 )
                 return
         except ValueError:
             chat.add_message(
-                "system", f"Usage: `/resume` to list, `/resume <n>` to restore."
+                "system",
+                "Usage: `/resume` to list, `/resume <n>` to restore.",
             )
             return
 

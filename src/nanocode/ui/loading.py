@@ -9,6 +9,7 @@ from rich.style import Style
 from rich.text import Text
 from textual.widget import Widget
 from textual.reactive import reactive
+from textual.timer import Timer
 
 THINKING_PHRASES = [
     "Consulting the Oracle at Delphi...",
@@ -49,17 +50,25 @@ class LoadingIndicator(Widget):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self._start_time = time()
+        self._timer: Timer | None = None
 
     def start(self, mode: str = "thinking") -> None:
         phrases = THINKING_PHRASES if mode == "thinking" else TOOL_PHRASES
         self.phrase = random.choice(phrases)
         self.is_active = True
         self._start_time = time()
-        self.auto_refresh = 1 / 12
+        # Use set_interval for reliable refresh
+        if self._timer is None:
+            try:
+                self._timer = self.set_interval(1 / 12, self.refresh)
+            except Exception:
+                pass  # not yet mounted
 
     def stop(self) -> None:
         self.is_active = False
-        self.auto_refresh = None
+        if self._timer is not None:
+            self._timer.stop()
+            self._timer = None
 
     def render(self) -> Text:
         if not self.is_active:
