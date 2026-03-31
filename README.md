@@ -1,4 +1,4 @@
-# nanocode
+# NanoCode
 
 A micro coding agent that auto-routes between Claude Code, Codex, and OpenCode styles. **193 lines of core logic**, dual-backend support (OpenAI + Anthropic), and Greek mythology-themed loading animations.
 
@@ -154,11 +154,11 @@ ui/ (438 lines)
 
 ## 🔄 Auto-Routing: Intelligent Agent Selection
 
-nanocode's auto-routing system intelligently selects the best agent for your task using a lightweight LLM classification call. This is inspired by Cursor's auto mode but adapted for multi-agent routing.
+NanoCode's auto-routing system intelligently selects the best agent for your task using a lightweight LLM classification call. This is inspired by Cursor's auto mode but adapted for multi-agent routing.
 
 ### How It Works
 
-When you enable `/agent auto`, nanocode performs a **two-stage routing**:
+When you enable `/agent auto`, NanoCode performs a **two-stage routing**:
 
 **Stage 1: Request Classification** (happens once per request)
 ```
@@ -430,9 +430,9 @@ Contributions welcome! Please:
 
 ## 📞 Support
 
-- **Issues**: [GitHub Issues](https://github.com/yourusername/nanocode/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/yourusername/nanocode/discussions)
-- **Email**: your-email@example.com
+- **Issues**: [GitHub Issues](https://github.com/pzy2000/nanocode/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/pzy2000/nanocode/discussions)
+- **Email**: pzy2000@sjtu.edu.cn
 
 ---
 
