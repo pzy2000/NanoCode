@@ -41,7 +41,6 @@ class LoadingIndicator(Widget):
     LoadingIndicator {
         height: 1;
         padding: 0 1;
-        display: none;
     }
     """
 
@@ -57,9 +56,12 @@ class LoadingIndicator(Widget):
     def watch_is_active(self, value: bool) -> None:
         """Toggle widget visibility when active state changes."""
         self.display = value
+        self.visible = value
+        self.refresh()
 
     def on_mount(self) -> None:
-        """Start timer if start() was called before mount."""
+        """Initialize display state and start timer if pending."""
+        self.display = False
         self._start_pending_timer()
 
     def _start_pending_timer(self) -> None:

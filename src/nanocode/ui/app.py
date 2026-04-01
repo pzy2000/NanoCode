@@ -218,6 +218,11 @@ A micro coding agent that auto-routes between **Claude Code**, **Codex**, and **
             return
         event.input.value = ""
 
+        # Save to command history
+        chat_view = self.query_one("#chat-view", ChatView)
+        chat_view.command_history.add(text)
+        chat_view.command_history.save()
+
         # Handle commands
         if text.startswith("/"):
             if text in ("/exit", "/quit"):

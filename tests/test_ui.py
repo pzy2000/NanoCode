@@ -153,6 +153,80 @@ class TestChatView:
         assert ChatView is not None
         assert MessageItem is not None
 
+    def test_start_loading_calls_indicator_start(self):
+        """Test that start_loading() calls indicator.start()."""
+        from nanocode.ui.chat_view import ChatView
+        from nanocode.ui.loading import LoadingIndicator
+
+        chat = ChatView()
+        # Mock the indicator
+        calls = []
+        original_start = LoadingIndicator.start
+
+        def mock_start(self, mode="thinking"):
+            calls.append(("start", mode))
+            original_start(self, mode)
+
+        LoadingIndicator.start = mock_start
+        try:
+            # Manually create and set the indicator
+            indicator = LoadingIndicator(id="loading")
+            indicator.set_interval = lambda *a, **kw: None  # no event loop
+            chat._loading = indicator
+
+            # Override query_one to return our mock
+            original_query = chat.query_one
+
+            def mock_query(selector, *args, **kwargs):
+                if selector == "#loading":
+                    return indicator
+                return original_query(selector, *args, **kwargs)
+
+            chat.query_one = mock_query
+
+            # Call start_loading
+            chat.start_loading("thinking")
+
+            # Verify start was called
+            assert len(calls) == 1
+            assert calls[0] == ("start", "thinking")
+        finally:
+            LoadingIndicator.start = original_start
+
+    def test_stop_loading_calls_indicator_stop(self):
+        """Test that stop_loading() calls indicator.stop()."""
+        from nanocode.ui.chat_view import ChatView
+        from nanocode.ui.loading import LoadingIndicator
+
+        chat = ChatView()
+        calls = []
+        original_stop = LoadingIndicator.stop
+
+        def mock_stop(self):
+            calls.append("stop")
+            original_stop(self)
+
+        LoadingIndicator.stop = mock_stop
+        try:
+            indicator = LoadingIndicator(id="loading")
+            indicator.set_interval = lambda *a, **kw: None
+
+            original_query = chat.query_one
+
+            def mock_query(selector, *args, **kwargs):
+                if selector == "#loading":
+                    return indicator
+                return original_query(selector, *args, **kwargs)
+
+            chat.query_one = mock_query
+
+            chat.stop_loading()
+
+            assert len(calls) == 1
+            assert calls[0] == "stop"
+        finally:
+            LoadingIndicator.stop = original_stop
+
 
 class TestApp:
     def test_import(self):
