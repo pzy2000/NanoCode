@@ -39,6 +39,7 @@ _COMMANDS: dict[str, tuple[str, list[CompletionItem]]] = {
     "/clear": ("Clear conversation history", []),
     "/help": ("Show help", []),
     "/?": ("Show help", []),
+    "/compact": ("Summarize conversation to reduce context", []),
     "/exit": ("Exit nanocode", []),
     "/quit": ("Exit nanocode", []),
 }

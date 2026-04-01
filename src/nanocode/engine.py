@@ -36,7 +36,13 @@ class StatusEvent:
     status: str  # "thinking" | "done"
 
 
-Event = TextEvent | ToolCallEvent | ToolResultEvent | StatusEvent
+@dataclass
+class UsageEvent:
+    input_tokens: int
+    output_tokens: int
+
+
+Event = TextEvent | ToolCallEvent | ToolResultEvent | StatusEvent | UsageEvent
 
 
 # === Backend Protocol ===
@@ -101,6 +107,8 @@ class Engine:
                     yield event
                 elif isinstance(event, ToolCallEvent):
                     tool_calls.append(event)
+                elif isinstance(event, UsageEvent):
+                    yield event
             assistant_msg: dict = {"role": "assistant", "content": text_buf}
             if tool_calls:
                 assistant_msg["tool_calls"] = [
@@ -127,3 +135,33 @@ class Engine:
                         "content": result.content,
                     }
                 )
+
+    async def compact(self) -> str:
+        """Summarize conversation history and replace messages with the summary."""
+        if not self.messages:
+            history_text = "(empty conversation)"
+        else:
+            history_text = "\n".join(
+                f"{m['role']}: {m.get('content', '')}"
+                for m in self.messages
+                if m.get("content")
+            )
+        prompt = (
+            "Please summarize the following conversation into a concise context summary, "
+            "preserving key decisions, code changes, and important context. "
+            "Reply in the same language as the conversation.\n\n"
+            + history_text
+        )
+        summary = ""
+        async for event in self.backend.stream(
+            "You are a helpful assistant that summarizes conversations concisely.",
+            [{"role": "user", "content": prompt}],
+            [],
+        ):
+            if isinstance(event, TextEvent):
+                summary += event.text
+        self.messages = [
+            {"role": "user", "content": f"[Conversation Summary]\n{summary}"},
+            {"role": "assistant", "content": "Understood, I will continue from this context."},
+        ]
+        return summary

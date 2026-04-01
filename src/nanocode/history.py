@@ -7,6 +7,8 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 
+_EMPTY_USAGE = {"total_input_tokens": 0, "total_output_tokens": 0, "total_cost": 0.0, "last_input_tokens": 0}
+
 
 def generate_session_id() -> str:
     return uuid.uuid4().hex[:12]
@@ -38,7 +40,13 @@ class HistoryManager:
     def _path(self, session_id: str) -> Path:
         return self.base_dir / f"{session_id}.json"
 
-    def save(self, session_id: str, messages: list[dict], cwd: str) -> None:
+    def save(
+        self,
+        session_id: str,
+        messages: list[dict],
+        cwd: str,
+        usage: dict | None = None,
+    ) -> None:
         preview = next(
             (m["content"][:80] for m in messages if m.get("role") == "user"),
             "(empty)",
@@ -50,6 +58,7 @@ class HistoryManager:
             "message_count": len(messages),
             "preview": preview,
             "messages": messages,
+            "usage": usage if usage is not None else dict(_EMPTY_USAGE),
         }
         self._path(session_id).write_text(
             json.dumps(data, ensure_ascii=False, indent=2)
@@ -60,7 +69,11 @@ class HistoryManager:
         if not p.exists():
             return None
         try:
-            return json.loads(p.read_text())
+            data = json.loads(p.read_text())
+            # Back-compat: older sessions without usage field
+            if "usage" not in data:
+                data["usage"] = dict(_EMPTY_USAGE)
+            return data
         except Exception:
             return None
 
@@ -76,6 +89,7 @@ class HistoryManager:
                         "cwd": data.get("cwd", ""),
                         "preview": data.get("preview", ""),
                         "message_count": data.get("message_count", 0),
+                        "usage": data.get("usage", dict(_EMPTY_USAGE)),
                     }
                 )
             except Exception:

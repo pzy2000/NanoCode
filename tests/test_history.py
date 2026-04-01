@@ -195,3 +195,45 @@ class TestResumeCommand:
         assert "second task" in result
         assert "1" in result
         assert "2" in result
+
+
+class TestHistoryUsagePersistence:
+    def test_save_with_usage(self, tmp_path):
+        from nanocode.history import HistoryManager
+
+        hm = HistoryManager(base_dir=tmp_path)
+        usage = {"total_input_tokens": 3313, "total_output_tokens": 512, "total_cost": 0.64, "last_input_tokens": 3313}
+        hm.save("s1", [{"role": "user", "content": "hi"}], cwd="/tmp", usage=usage)
+        loaded = hm.load("s1")
+        assert loaded["usage"]["total_input_tokens"] == 3313
+        assert abs(loaded["usage"]["total_cost"] - 0.64) < 1e-6
+
+    def test_save_without_usage_defaults_empty(self, tmp_path):
+        from nanocode.history import HistoryManager
+
+        hm = HistoryManager(base_dir=tmp_path)
+        hm.save("s1", [{"role": "user", "content": "hi"}], cwd="/tmp")
+        loaded = hm.load("s1")
+        assert "usage" in loaded
+        assert loaded["usage"]["total_input_tokens"] == 0
+        assert loaded["usage"]["total_cost"] == 0.0
+
+    def test_usage_in_session_metadata(self, tmp_path):
+        from nanocode.history import HistoryManager
+
+        hm = HistoryManager(base_dir=tmp_path)
+        usage = {"total_input_tokens": 1000, "total_output_tokens": 200, "total_cost": 0.10, "last_input_tokens": 1000}
+        hm.save("s1", [{"role": "user", "content": "hi"}], cwd="/tmp", usage=usage)
+        sessions = hm.list_sessions()
+        assert sessions[0]["usage"]["total_cost"] == 0.10
+
+    def test_resume_preserves_usage(self, tmp_path):
+        """Loading a session should return the saved usage dict intact."""
+        from nanocode.history import HistoryManager
+
+        hm = HistoryManager(base_dir=tmp_path)
+        usage = {"total_input_tokens": 5000, "total_output_tokens": 800, "total_cost": 1.23, "last_input_tokens": 5000}
+        hm.save("s1", [{"role": "user", "content": "test"}], cwd="/tmp", usage=usage)
+        loaded = hm.load("s1")
+        assert loaded["usage"]["total_output_tokens"] == 800
+        assert abs(loaded["usage"]["total_cost"] - 1.23) < 1e-6

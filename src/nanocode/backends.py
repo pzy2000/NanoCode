@@ -9,9 +9,7 @@ import anthropic
 import openai
 
 from nanocode.tools import Tool
-
-# Import event types (will be defined in engine.py)
-from nanocode.engine import TextEvent, ToolCallEvent, Event
+from nanocode.engine import TextEvent, ToolCallEvent, UsageEvent, Event
 
 
 class OpenAIBackend:
@@ -29,9 +27,16 @@ class OpenAIBackend:
             messages=api_messages,
             tools=tool_defs,
             stream=True,
+            stream_options={"include_usage": True},
         )
         tc_buf: dict[int, dict] = {}
+        input_tokens = 0
+        output_tokens = 0
         async for chunk in response:
+            # Capture usage from the final chunk
+            if chunk.usage:
+                input_tokens = chunk.usage.prompt_tokens or 0
+                output_tokens = chunk.usage.completion_tokens or 0
             delta = chunk.choices[0].delta if chunk.choices else None
             if not delta:
                 continue
@@ -52,6 +57,8 @@ class OpenAIBackend:
             tc = tc_buf[idx]
             args = json.loads(tc["arguments"]) if tc["arguments"] else {}
             yield ToolCallEvent(name=tc["name"], args=args, call_id=tc["id"])
+        if input_tokens or output_tokens:
+            yield UsageEvent(input_tokens=input_tokens, output_tokens=output_tokens)
 
     @staticmethod
     def _convert(messages: list[dict]) -> list[dict]:
@@ -59,7 +66,6 @@ class OpenAIBackend:
         result = []
         for m in messages:
             if m["role"] == "assistant" and "tool_calls" in m:
-                # Convert internal tool_calls to OpenAI format
                 result.append(
                     {
                         "role": "assistant",
@@ -111,6 +117,12 @@ class AnthropicBackend:
                     yield ToolCallEvent(
                         name=block.name, args=block.input, call_id=block.id
                     )
+            # Emit usage from final message
+            if final.usage:
+                yield UsageEvent(
+                    input_tokens=final.usage.input_tokens or 0,
+                    output_tokens=final.usage.output_tokens or 0,
+                )
 
     @staticmethod
     def _convert(messages: list[dict]) -> list[dict]:

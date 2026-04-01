@@ -297,3 +297,99 @@ class TestEngine:
             "nonexistent" in results[0].result.content.lower()
             or "unknown" in results[0].result.content.lower()
         )
+
+
+class TestUsageEvent:
+    def test_usage_event_fields(self):
+        from nanocode.engine import UsageEvent
+
+        e = UsageEvent(input_tokens=100, output_tokens=50)
+        assert e.input_tokens == 100
+        assert e.output_tokens == 50
+
+    def test_usage_event_in_event_union(self):
+        from nanocode.engine import UsageEvent, Event
+        import typing
+        args = typing.get_args(Event)
+        assert UsageEvent in args
+
+
+class TestEngineCompact:
+    @pytest.fixture
+    def engine_with_history(self):
+        from nanocode.engine import Engine, TextEvent
+
+        async def summarize_stream(system, messages, tools):
+            yield TextEvent("This is a summary of the conversation.")
+
+        from unittest.mock import AsyncMock, MagicMock
+        backend = AsyncMock()
+        backend.stream = MagicMock(side_effect=summarize_stream)
+
+        engine = Engine(backend)
+        engine.messages = [
+            {"role": "user", "content": "fix the bug"},
+            {"role": "assistant", "content": "I fixed it by changing line 42."},
+            {"role": "user", "content": "now add tests"},
+            {"role": "assistant", "content": "Added 3 tests in test_foo.py."},
+        ]
+        return engine
+
+    @pytest.mark.asyncio
+    async def test_compact_returns_summary_string(self, engine_with_history):
+        summary = await engine_with_history.compact()
+        assert isinstance(summary, str)
+        assert len(summary) > 0
+
+    @pytest.mark.asyncio
+    async def test_compact_replaces_messages(self, engine_with_history):
+        await engine_with_history.compact()
+        # After compact, messages should be shorter
+        assert len(engine_with_history.messages) <= 2
+
+    @pytest.mark.asyncio
+    async def test_compact_messages_contain_summary(self, engine_with_history):
+        summary = await engine_with_history.compact()
+        all_content = " ".join(
+            m.get("content", "") for m in engine_with_history.messages
+        )
+        assert summary in all_content
+
+    @pytest.mark.asyncio
+    async def test_compact_empty_history(self):
+        from nanocode.engine import Engine, TextEvent
+        from unittest.mock import AsyncMock, MagicMock
+
+        async def stream_fn(system, messages, tools):
+            yield TextEvent("Empty.")
+
+        backend = AsyncMock()
+        backend.stream = MagicMock(side_effect=stream_fn)
+        engine = Engine(backend)
+        engine.messages = []
+
+        summary = await engine.compact()
+        assert isinstance(summary, str)
+
+    @pytest.mark.asyncio
+    async def test_submit_emits_usage_event_if_backend_provides(self):
+        """If backend emits UsageEvent, engine should pass it through."""
+        from nanocode.engine import Engine, TextEvent, UsageEvent
+        from unittest.mock import AsyncMock, MagicMock
+
+        async def stream_fn(system, messages, tools):
+            yield TextEvent("hello")
+            yield UsageEvent(input_tokens=100, output_tokens=20)
+
+        backend = AsyncMock()
+        backend.stream = MagicMock(side_effect=stream_fn)
+        engine = Engine(backend)
+
+        events = []
+        async for event in engine.submit("hi"):
+            events.append(event)
+
+        usage_events = [e for e in events if isinstance(e, UsageEvent)]
+        assert len(usage_events) == 1
+        assert usage_events[0].input_tokens == 100
+        assert usage_events[0].output_tokens == 20
