@@ -84,5 +84,6 @@ async def test_loading_indicator_renders_content_when_active():
         # Render should produce non-empty content
         rendered = indicator.render()
         assert rendered.plain != ""
-        assert "●" in rendered.plain  # animated dot
+        from nanocode.ui.loading import SPINNER_FRAMES
+        assert any(f in rendered.plain for f in SPINNER_FRAMES)  # spinner char
         assert indicator.phrase in rendered.plain

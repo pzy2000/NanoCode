@@ -1,38 +1,38 @@
-"""Greek mythology themed loading indicator."""
+"""Funny loading indicator with spinner animation."""
 
 from __future__ import annotations
 
 import random
 from time import time
 
-from rich.style import Style
 from rich.text import Text
 from textual.widget import Widget
 from textual.reactive import reactive
 from textual.timer import Timer
 
+SPINNER_FRAMES = ["|", "/", "-", "\\"]
+
 THINKING_PHRASES = [
-    "Consulting the Oracle at Delphi...",
-    "Weaving code with Athena...",
-    "Forging in Hephaestus' workshop...",
-    "Navigating the labyrinth...",
-    "Stealing fire from Olympus...",
-    "Summoning the Muses...",
-    "Charting course with Odysseus...",
-    "Unraveling Ariadne's thread...",
-    "Ascending Mount Parnassus...",
-    "Deciphering the Sibylline Books...",
-    "Crossing the River Styx...",
-    "Taming Pegasus...",
+    "doing your homework...",
+    "cooking your dinner...",
+    "dating a girl for you...",
+    "walking your dog...",
+    "filing your taxes...",
+    "writing your resignation letter...",
+    "pretending to understand the requirements...",
+    "blaming it on the compiler...",
+    "googling Stack Overflow...",
+    "making stuff up confidently...",
+    "reading the docs (just kidding)...",
+    "asking ChatGPT (ironic, right)...",
 ]
 
 TOOL_PHRASES = [
-    "Hermes is delivering...",
-    "Apollo examines the code...",
-    "Hephaestus hammers the changes...",
-    "Athena reviews the strategy...",
-    "Prometheus lights the way...",
-    "Daedalus engineers a solution...",
+    "touching your files...",
+    "running commands you didn't ask for...",
+    "deleting system32 (just kidding)...",
+    "making it worse before better...",
+    "committing crimes against your codebase...",
 ]
 
 
@@ -54,18 +54,15 @@ class LoadingIndicator(Widget):
         self._pending_mode: str | None = None
 
     def watch_is_active(self, value: bool) -> None:
-        """Toggle widget visibility when active state changes."""
         self.display = value
         self.visible = value
         self.refresh()
 
     def on_mount(self) -> None:
-        """Initialize display state and start timer if pending."""
         self.display = False
         self._start_pending_timer()
 
     def _start_pending_timer(self) -> None:
-        """Start the refresh timer if there's a pending mode."""
         if self._pending_mode is not None and self._timer is None:
             self._timer = self.set_interval(1 / 12, self.refresh)
             self._pending_mode = None
@@ -79,7 +76,6 @@ class LoadingIndicator(Widget):
             try:
                 self._timer = self.set_interval(1 / 12, self.refresh)
             except Exception:
-                # Not yet mounted — store mode so on_mount can start the timer
                 self._pending_mode = mode
 
     def stop(self) -> None:
@@ -94,16 +90,9 @@ class LoadingIndicator(Widget):
             return Text("")
 
         elapsed = time() - self._start_time
-        speed = 0.8
-        dot = "\u25cf"  # ●
+        frame = SPINNER_FRAMES[int(elapsed * 10) % len(SPINNER_FRAMES)]
 
-        dots_parts = []
-        for i in range(4):
-            blend = (elapsed * speed - i / 6) % 1
-            brightness = int(80 + 175 * ((1 - blend) ** 2))
-            color = f"rgb({brightness},{brightness},{255})"
-            dots_parts.append((f"{dot} ", Style(color=color)))
-
-        result = Text.assemble(*dots_parts)
+        result = Text()
+        result.append(f"{frame} ", style="bold")
         result.append(self.phrase, style="dim italic")
         return result
